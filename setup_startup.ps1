@@ -1,7 +1,7 @@
 $startupFolder = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup")
 $vbsPath = [System.IO.Path]::Combine($startupFolder, "jrnl-lncher.vbs")
 $uvPath = "C:\Users\maxwe\.local\bin\uv.exe"
-$projectDir = "C:\Users\maxweepos\jrnl-lncher"
+$projectDir = "C:\Users\maxwe\repos\jrnl-lncher"
 
 $vbsContent = @"
 Set WshShell = CreateObject("WScript.Shell")
