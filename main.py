@@ -152,8 +152,8 @@ class JrnlApp:
             return None
         text = self.input_box.get("1.0", tk.END).strip()
         if text:
-            if add_entry(text):
-                self.hide()
+            self.hide()
+            threading.Thread(target=add_entry, args=(text,), daemon=True).start()
         return "break"
 
     def handle_shift_enter(self, event):
