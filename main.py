@@ -17,7 +17,8 @@ app = None
 
 def get_last_entries():
     try:
-        result = subprocess.run(['jrnl', '-n', '3'], capture_output=True, text=True, check=True)
+        flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000) if os.name == 'nt' else 0
+        result = subprocess.run(['jrnl', '-n', '3'], capture_output=True, text=True, check=True, creationflags=flags)
         out = result.stdout.strip()
         return out if out else "..."
     except Exception as e:
@@ -26,7 +27,8 @@ def get_last_entries():
 
 def add_entry(text):
     try:
-        subprocess.run(['jrnl'], input=text, text=True, check=True)
+        flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000) if os.name == 'nt' else 0
+        subprocess.run(['jrnl'], input=text, text=True, check=True, creationflags=flags)
         return True
     except Exception as e:
         logging.error(f"Error adding entry: {e}")
