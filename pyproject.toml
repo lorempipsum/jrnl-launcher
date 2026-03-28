@@ -1,11 +1,12 @@
 [project]
 name = "jrnl-lncher"
 version = "0.1.0"
-description = "Add your description here"
+description = "A minimalist Windows tray utility for fast jrnl entry via a global hotkey"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pillow>=12.1.1",
     "pynput>=1.8.1",
+    "python-dotenv>=1.0.0",
     "windnd>=1.0.7",
 ]

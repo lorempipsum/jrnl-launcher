@@ -7,3 +7,6 @@ jrnl-lncher.log
 .vscode/
 *.swp
 *.swo
+
+# Local configuration — never commit this
+.env

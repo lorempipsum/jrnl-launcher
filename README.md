@@ -26,11 +26,17 @@ This project uses [uv](https://github.com/astral-sh/uv) for fast Python dependen
     ```bash
     uv sync
     ```
-2.  **Run the service**:
+2.  **Configure your environment**:
+    Copy `.env.example` to `.env` and adjust as needed:
+    ```bash
+    cp .env.example .env
+    ```
+    Edit `.env` to set your preferred hotkey (default is `Win + J`).
+3.  **Run the service**:
     ```bash
     uv run python main.py
     ```
-3.  **Automatic Startup**:
+4.  **Automatic Startup**:
     Run the included `setup_startup.ps1` PowerShell script to add the utility to your Windows Startup folder:
     ```powershell
     powershell -ExecutionPolicy Bypass -File setup_startup.ps1

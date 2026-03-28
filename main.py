@@ -6,9 +6,12 @@ import sys
 import logging
 import shutil
 import uuid
+from dotenv import load_dotenv
 from pynput import keyboard
 from PIL import Image, ImageGrab, ImageTk
 import windnd
+
+load_dotenv()
 
 # Setup logging
 logging.basicConfig(
@@ -312,9 +315,10 @@ def on_hotkey():
         app.root.after(0, app.show)
 
 def start_hotkey_listener():
+    hotkey = os.environ.get("JRNL_HOTKEY", "<cmd>+j")
     try:
-        logging.info("Starting hotkey listener for <cmd>+j...")
-        with keyboard.GlobalHotKeys({'<cmd>+j': on_hotkey}) as h:
+        logging.info(f"Starting hotkey listener for {hotkey}...")
+        with keyboard.GlobalHotKeys({hotkey: on_hotkey}) as h:
             h.join()
     except Exception as e:
         logging.error(f"Hotkey listener error: {e}")
