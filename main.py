@@ -11,7 +11,27 @@ from pynput import keyboard
 from PIL import Image, ImageGrab, ImageTk
 import windnd
 
+import socket
+
 load_dotenv()
+
+# Prevent multiple instances using a TCP socket lock
+def get_lock():
+    try:
+        # Create a socket and bind it to a specific port.
+        # This will fail if another instance is already running and has bound the port.
+        lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        lock_socket.bind(('127.0.0.1', 56789))
+        return lock_socket
+    except socket.error:
+        return None
+
+_lock_socket = get_lock()
+if not _lock_socket:
+    # We can't log to the file yet as logging isn't setup, 
+    # but we can print and exit immediately.
+    print("Another instance of jrnl-launcher is already running. Exiting.")
+    sys.exit(0)
 
 # Setup logging
 logging.basicConfig(
