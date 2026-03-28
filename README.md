@@ -1,6 +1,6 @@
 # jrnl-lncher
 
-<video src="media/jrnl-lnchr-recording-web.mp4" controls autoplay muted loop></video>
+[▶ Watch demo video (MP4)](media/jrnl-lnchr-recording-web.mp4)
 
 A minimalist, high-speed Windows utility to quickly add entries to your [jrnl](https://jrnl.sh/) using a global hotkey.
 
