@@ -1,6 +1,12 @@
 # jrnl-lncher
 
-![Demo preview](media/jrnl-lnchr-preview.gif)
+<video controls muted playsinline preload="metadata" width="100%">
+    <source src="https://github.com/lorempipsum/jrnl-launcher/raw/refs/heads/main/media/jrnl-lnchr-recording-web.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
+
+[If the inline player does not appear, watch the MP4 directly](media/jrnl-lnchr-recording-web.mp4)
+
 A minimalist, high-speed Windows utility to quickly add entries to your [jrnl](https://jrnl.sh/) using a global hotkey.
 
 ## Features
