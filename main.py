@@ -4,7 +4,11 @@ import threading
 import os
 import sys
 import logging
+import shutil
+import uuid
 from pynput import keyboard
+from PIL import Image, ImageGrab, ImageTk
+import windnd
 
 # Setup logging
 logging.basicConfig(
@@ -63,8 +67,13 @@ class JrnlApp:
         self.container_window = self.canvas.create_window(0, 0, window=self.container, anchor="nw")
         
         # UI Elements
+        self.attachments = []
+        
         self.input_frame = tk.Frame(self.container, bg=self.input_bg, padx=15, pady=15)
         self.input_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(0, 15))
+        
+        self.attachments_frame = tk.Frame(self.input_frame, bg=self.input_bg)
+        self.attachments_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 5))
         
         self.input_box = tk.Text(
             self.input_frame, height=3, bg=self.input_bg, fg=self.input_text_color, 
@@ -92,10 +101,102 @@ class JrnlApp:
         
         self.input_box.bind("<Return>", self.handle_enter)
         self.input_box.bind("<Shift-Return>", self.handle_shift_enter)
+        self.input_box.bind("<<Paste>>", self.handle_paste)
         self.root.bind("<Escape>", lambda e: self.hide())
+        
+        try:
+            windnd.hook_dropfiles(self.root, self.handle_drop)
+        except Exception as e:
+            logging.error(f"Failed to hook windnd: {e}")
         
         self.root.withdraw()
         logging.info("UI initialized and hidden.")
+
+    def get_jrnl_media_path(self):
+        if getattr(self, "cached_media_path", None):
+            return self.cached_media_path
+            
+        try:
+            result = subprocess.run(['jrnl', '--list'], capture_output=True, text=True, check=True)
+            for line in result.stdout.splitlines():
+                if "default ->" in line:
+                    jrnl_path = line.split("->")[1].strip()
+                    media_path = os.path.join(os.path.dirname(jrnl_path), "jrnl-media")
+                    if not os.path.exists(media_path):
+                        os.makedirs(media_path)
+                    self.cached_media_path = media_path
+                    return media_path
+        except Exception as e:
+            logging.error(f"Error finding jrnl path: {e}")
+        return None
+
+    def handle_drop(self, files):
+        for f in files:
+            try:
+                file_path = f.decode('gbk') if isinstance(f, bytes) else f
+                if os.path.isfile(file_path):
+                    self.add_attachment(file_path, is_clipboard=False)
+            except Exception as e:
+                logging.error(f"Error handling drop: {e}")
+
+    def handle_paste(self, event):
+        try:
+            img = ImageGrab.grabclipboard()
+            if img:
+                self.add_attachment(img, is_clipboard=True)
+                return "break"
+        except Exception as e:
+            logging.error(f"Error handling paste: {e}")
+            
+    def add_attachment(self, data, is_clipboard):
+        frame = tk.Frame(self.attachments_frame, bg=self.input_bg)
+        frame.pack(side=tk.TOP, fill=tk.X, pady=2)
+        
+        thumb_label = tk.Label(frame, bg=self.input_bg)
+        thumb_label.pack(side=tk.LEFT)
+        
+        if is_clipboard:
+            img = data.copy()
+            img.thumbnail((32, 32))
+            photo = ImageTk.PhotoImage(img)
+            thumb_label.config(image=photo)
+            thumb_label.image = photo
+            original_name = "Pasted Image"
+        else:
+            original_name = os.path.basename(data)
+            try:
+                img = Image.open(data)
+                img.thumbnail((32, 32))
+                photo = ImageTk.PhotoImage(img)
+                thumb_label.config(image=photo)
+                thumb_label.image = photo
+            except Exception:
+                thumb_label.config(text="📄", fg=self.text_color, width=4)
+                
+        name_var = tk.StringVar(value=original_name)
+        entry = tk.Entry(frame, textvariable=name_var, bg=self.bg_color, fg=self.input_text_color, insertbackground="white", borderwidth=0, highlightthickness=0)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        
+        attachment_obj = {
+            "data": data,
+            "is_clipboard": is_clipboard,
+            "name_var": name_var,
+            "frame": frame
+        }
+
+        remove_btn = tk.Button(frame, text="❌", bg=self.input_bg, fg=self.text_color, borderwidth=0, cursor="hand2", command=lambda: self.remove_attachment(attachment_obj))
+        remove_btn.pack(side=tk.RIGHT)
+        
+        self.attachments.append(attachment_obj)
+
+    def remove_attachment(self, attachment_obj):
+        if attachment_obj in self.attachments:
+            self.attachments.remove(attachment_obj)
+        attachment_obj["frame"].destroy()
+
+    def clear_attachments(self):
+        for att in list(self.attachments):
+            self.remove_attachment(att)
 
     def update_geometry(self):
         h = self.height_expanded if self.is_expanded else self.height_hidden
@@ -131,7 +232,20 @@ class JrnlApp:
     def refresh_entries(self):
         self.entries_text.configure(state=tk.NORMAL)
         self.entries_text.delete("1.0", tk.END)
-        self.entries_text.insert(tk.END, get_last_entries())
+        self.entries_text.insert(tk.END, "Loading...")
+        self.entries_text.configure(state=tk.DISABLED)
+        self.entries_text.see(tk.END)
+
+        def fetch_task():
+            text = get_last_entries()
+            self.root.after(0, self._update_entries_text, text)
+            
+        threading.Thread(target=fetch_task, daemon=True).start()
+
+    def _update_entries_text(self, text):
+        self.entries_text.configure(state=tk.NORMAL)
+        self.entries_text.delete("1.0", tk.END)
+        self.entries_text.insert(tk.END, text)
         self.entries_text.configure(state=tk.DISABLED)
         self.entries_text.see(tk.END)
 
@@ -140,6 +254,7 @@ class JrnlApp:
         if self.is_expanded:
             self.toggle_history()
         self.input_box.delete("1.0", tk.END)
+        self.clear_attachments()
         self.root.deiconify()
         self.root.attributes("-topmost", True)
         self.root.focus_force()
@@ -153,6 +268,31 @@ class JrnlApp:
         if event.state & 0x0001: 
             return None
         text = self.input_box.get("1.0", tk.END).strip()
+        
+        if self.attachments:
+            media_path = self.get_jrnl_media_path()
+            if not media_path:
+                logging.error("Could not determine jrnl media path")
+            else:
+                for att in self.attachments:
+                    dest_filename = ""
+                    if att["is_clipboard"]:
+                        img = att["data"]
+                        dest_filename = f"{uuid.uuid4().hex[:8]}.png"
+                        img.save(os.path.join(media_path, dest_filename))
+                    else:
+                        src_path = att["data"]
+                        ext = os.path.splitext(src_path)[1]
+                        dest_filename = f"{uuid.uuid4().hex[:8]}{ext}"
+                        shutil.copy2(src_path, os.path.join(media_path, dest_filename))
+                    
+                    user_name = att["name_var"].get().strip()
+                    if not user_name:
+                        user_name = dest_filename
+                    
+                    link = f"[{user_name}](jrnl-media/{dest_filename})"
+                    text += f"\n{link}"
+
         if text:
             self.hide()
             threading.Thread(target=add_entry, args=(text,), daemon=True).start()
