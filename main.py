@@ -68,7 +68,7 @@ class JrnlApp:
         self.root.title("jrnl-lncher")
         
         self.width = 600
-        self.height_hidden = 145
+        self.height_hidden = 130
         self.height_expanded = 320
         self.is_expanded = False
         
@@ -92,18 +92,18 @@ class JrnlApp:
         # UI Elements
         self.attachments = []
         
-        self.input_frame = tk.Frame(self.container, bg=self.input_bg, padx=15, pady=15)
-        self.input_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(0, 15))
-        
-        self.attachments_frame = tk.Frame(self.input_frame, bg=self.input_bg)
-        self.attachments_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 5))
+        self.input_frame = tk.Frame(self.container, bg=self.input_bg, padx=10, pady=8)
+        self.input_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(0, 10))
         
         self.input_box = tk.Text(
-            self.input_frame, height=3, bg=self.input_bg, fg=self.input_text_color, 
+            self.input_frame, height=2, bg=self.input_bg, fg=self.input_text_color, 
             font=("Segoe UI", 12), insertbackground="white", 
             borderwidth=0, highlightthickness=0, wrap=tk.WORD
         )
         self.input_box.pack(fill=tk.X)
+
+        self.attachments_frame = tk.Frame(self.container, bg=self.bg_color)
+        self.attachments_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15)
 
         self.toggle_btn = tk.Label(
             self.container, text="▲", bg=self.bg_color, fg=self.accent_color,
@@ -172,15 +172,15 @@ class JrnlApp:
             logging.error(f"Error handling paste: {e}")
             
     def add_attachment(self, data, is_clipboard):
-        frame = tk.Frame(self.attachments_frame, bg=self.input_bg)
-        frame.pack(side=tk.TOP, fill=tk.X, pady=2)
+        frame = tk.Frame(self.attachments_frame, bg=self.bg_color)
+        frame.pack(side=tk.TOP, fill=tk.X, pady=1)
         
-        thumb_label = tk.Label(frame, bg=self.input_bg)
+        thumb_label = tk.Label(frame, bg=self.bg_color)
         thumb_label.pack(side=tk.LEFT)
         
         if is_clipboard:
             img = data.copy()
-            img.thumbnail((32, 32))
+            img.thumbnail((24, 24))
             photo = ImageTk.PhotoImage(img)
             thumb_label.config(image=photo)
             thumb_label.image = photo
@@ -189,7 +189,7 @@ class JrnlApp:
             original_name = os.path.basename(data)
             try:
                 img = Image.open(data)
-                img.thumbnail((32, 32))
+                img.thumbnail((24, 24))
                 photo = ImageTk.PhotoImage(img)
                 thumb_label.config(image=photo)
                 thumb_label.image = photo
@@ -197,18 +197,25 @@ class JrnlApp:
                 thumb_label.config(text="📄", fg=self.text_color, width=4)
                 
         name_var = tk.StringVar(value=original_name)
-        entry = tk.Entry(frame, textvariable=name_var, bg=self.bg_color, fg=self.input_text_color, insertbackground="white", borderwidth=0, highlightthickness=0)
-        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        name_label = tk.Label(frame, textvariable=name_var, bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 9))
+        name_label.pack(side=tk.LEFT, padx=5)
+        
+        # Build markdown link reference to insert in the text box
+        link_ref = f"[{original_name}]({original_name})"
         
         attachment_obj = {
             "data": data,
             "is_clipboard": is_clipboard,
             "name_var": name_var,
-            "frame": frame
+            "frame": frame,
+            "link_ref": link_ref,
         }
 
-        remove_btn = tk.Button(frame, text="❌", bg=self.input_bg, fg=self.text_color, borderwidth=0, cursor="hand2", command=lambda: self.remove_attachment(attachment_obj))
+        remove_btn = tk.Button(frame, text="✕", bg=self.bg_color, fg=self.text_color, borderwidth=0, cursor="hand2", font=("Segoe UI", 8), command=lambda: self.remove_attachment(attachment_obj))
         remove_btn.pack(side=tk.RIGHT)
+        
+        # Insert markdown link in the text box
+        self.input_box.insert(tk.INSERT, link_ref + " ")
         
         self.attachments.append(attachment_obj)
 
@@ -216,6 +223,15 @@ class JrnlApp:
         if attachment_obj in self.attachments:
             self.attachments.remove(attachment_obj)
         attachment_obj["frame"].destroy()
+        # Remove the markdown link reference from the text box
+        link_ref = attachment_obj.get("link_ref", "")
+        if link_ref:
+            content = self.input_box.get("1.0", tk.END)
+            new_content = content.replace(link_ref + " ", "", 1)
+            if new_content == content:
+                new_content = content.replace(link_ref, "", 1)
+            self.input_box.delete("1.0", tk.END)
+            self.input_box.insert("1.0", new_content.rstrip("\n"))
 
     def clear_attachments(self):
         for att in list(self.attachments):
@@ -234,6 +250,7 @@ class JrnlApp:
         self.canvas.config(width=self.width, height=h)
         self.canvas.delete("bg")
         self.draw_rounded_rect(0, 0, self.width, h, 15, fill=self.bg_color, tags="bg")
+        self.canvas.tag_lower("bg")
         self.canvas.itemconfig(self.container_window, width=self.width, height=h)
 
     def draw_rounded_rect(self, x1, y1, x2, y2, radius, **kwargs):
@@ -292,34 +309,60 @@ class JrnlApp:
             return None
         text = self.input_box.get("1.0", tk.END).strip()
         
-        if self.attachments:
-            media_path = self.get_jrnl_media_path()
-            if not media_path:
-                logging.error("Could not determine jrnl media path")
-            else:
-                for att in self.attachments:
-                    dest_filename = ""
-                    if att["is_clipboard"]:
-                        img = att["data"]
-                        dest_filename = f"{uuid.uuid4().hex[:8]}.png"
-                        img.save(os.path.join(media_path, dest_filename))
-                    else:
-                        src_path = att["data"]
-                        ext = os.path.splitext(src_path)[1]
-                        dest_filename = f"{uuid.uuid4().hex[:8]}{ext}"
-                        shutil.copy2(src_path, os.path.join(media_path, dest_filename))
-                    
-                    user_name = att["name_var"].get().strip()
-                    if not user_name:
-                        user_name = dest_filename
-                    
-                    link = f"[{user_name}](jrnl-media/{dest_filename})"
-                    text += f"\n{link}"
+        # Snapshot attachment data before hiding (must read tk vars on main thread)
+        attachment_data = []
+        for att in self.attachments:
+            attachment_data.append({
+                "data": att["data"],
+                "is_clipboard": att["is_clipboard"],
+                "user_name": att["name_var"].get().strip(),
+                "link_ref": att.get("link_ref", ""),
+            })
 
-        if text:
+        if text or attachment_data:
             self.hide()
-            threading.Thread(target=add_entry, args=(text,), daemon=True).start()
+            threading.Thread(
+                target=self._submit_entry, args=(text, attachment_data), daemon=True
+            ).start()
         return "break"
+
+    def _submit_entry(self, text, attachment_data):
+        try:
+            if attachment_data:
+                media_path = self.get_jrnl_media_path()
+                if not media_path:
+                    logging.error("Could not determine jrnl media path")
+                else:
+                    for att in attachment_data:
+                        if att["is_clipboard"]:
+                            img = att["data"]
+                            dest_filename = f"{uuid.uuid4().hex[:8]}.png"
+                            img.save(os.path.join(media_path, dest_filename))
+                        else:
+                            src_path = att["data"]
+                            dest_filename = os.path.basename(src_path)
+                            dest_path = os.path.join(media_path, dest_filename)
+                            # Avoid overwriting existing files by appending a short suffix
+                            if os.path.exists(dest_path):
+                                name, ext = os.path.splitext(dest_filename)
+                                dest_filename = f"{name}_{uuid.uuid4().hex[:6]}{ext}"
+                                dest_path = os.path.join(media_path, dest_filename)
+                            shutil.copy2(src_path, dest_path)
+                        user_name = att["user_name"]
+                        if not user_name:
+                            user_name = dest_filename
+                        
+                        proper_link = f"[{user_name}](jrnl-media/{dest_filename})"
+                        link_ref = att.get("link_ref", "")
+                        if link_ref and link_ref in text:
+                            text = text.replace(link_ref, proper_link, 1)
+                        else:
+                            text += f"\n{proper_link}"
+
+            if text:
+                add_entry(text)
+        except Exception as e:
+            logging.error(f"Error submitting entry: {e}")
 
     def handle_shift_enter(self, event):
         self.input_box.insert(tk.INSERT, "\n")
