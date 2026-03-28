@@ -1,9 +1,6 @@
 # jrnl-lncher
 
-[![Demo preview](media/jrnl-lnchr-preview.gif)](media/jrnl-lnchr-recording-web.mp4)
-
-[▶ Watch full demo video (MP4)](media/jrnl-lnchr-recording-web.mp4)
-
+![Demo preview](media/jrnl-lnchr-preview.gif)
 A minimalist, high-speed Windows utility to quickly add entries to your [jrnl](https://jrnl.sh/) using a global hotkey.
 
 ## Features
